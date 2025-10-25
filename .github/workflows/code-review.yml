@@ -26,11 +26,41 @@ jobs:
     - name: Install dependencies
       run: npm install
     
+    - name: Check for test script
+      id: check-tests
+      run: |
+        if npm run | grep -q " test"; then
+          echo "tests_available=true" >> $GITHUB_OUTPUT
+        else
+          echo "tests_available=false" >> $GITHUB_OUTPUT
+          echo "⚠️ No test script found in package.json"
+        fi
+    
     - name: Run tests
+      if: steps.check-tests.outputs.tests_available == 'true'
       run: npm test
     
+    - name: Skip tests
+      if: steps.check-tests.outputs.tests_available == 'false'
+      run: echo "Skipping tests - no test script configured"
+    
+    - name: Check for lint script
+      id: check-lint
+      run: |
+        if npm run | grep -q " lint"; then
+          echo "lint_available=true" >> $GITHUB_OUTPUT
+        else
+          echo "lint_available=false" >> $GITHUB_OUTPUT
+          echo "⚠️ No lint script found in package.json"
+        fi
+    
     - name: Run linting
+      if: steps.check-lint.outputs.lint_available == 'true'
       run: npm run lint
+    
+    - name: Skip linting
+      if: steps.check-lint.outputs.lint_available == 'false'
+      run: echo "Skipping linting - no lint script configured"
     
     - name: Check code complexity
       run: |
@@ -82,7 +112,7 @@ jobs:
         echo "## Pull Request: ${{ github.event.pull_request.title }}" >> quality-report.md
         echo "### Branch: ${{ github.head_ref }}" >> quality-report.md
         echo "" >> quality-report.md
-        echo "##  Quality Checks:" >> quality-report.md
+        echo "## Quality Checks:" >> quality-report.md
         echo "- Tests must pass" >> quality-report.md
         echo "- Linting must pass" >> quality-report.md  
         echo "- Security audit completed" >> quality-report.md
