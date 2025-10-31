@@ -1,11 +1,11 @@
-name: Simple Deployment
+name: Deploy to Vercel
 
 on:
   push:
     branches: [ main ]
 
 jobs:
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
     
     steps:
@@ -20,7 +20,7 @@ jobs:
     - name: Install dependencies
       run: npm install
       
-    - name: Check for tests
+    - name: Run tests
       run: |
         if npm run | grep -q " test"; then
           npm test
@@ -28,37 +28,43 @@ jobs:
           echo "No tests to run"
         fi
         
-    - name: Check for build
+    - name: Build project
       run: |
         if npm run | grep -q " build"; then
           npm run build
         else
           echo "No build to run"
+          # Create basic build output for Vercel
+          mkdir -p public
+          echo "<html><body><h1>GitHub Actions Assignment</h1><p>Deployed on Vercel</p></body></html>" > public/index.html
         fi
         
-    - name: Create deployment package
-      run: |
-        mkdir -p deploy
-        cp -r * deploy/ || true
-        tar -czf deploy.tar.gz deploy/
-        
-    - name: Upload deployment
+    - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: deployment
-        path: deploy.tar.gz
-        
-  deploy:
+        name: build-output
+        path: |
+          build/
+          public/
+          dist/
+          package.json
+          
+  deploy-to-vercel:
     runs-on: ubuntu-latest
-    needs: build
+    needs: build-and-test
+    environment: production
     
     steps:
-    - name: Download deployment
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Download build artifacts
       uses: actions/download-artifact@v4
       with:
-        name: deployment
+        name: build-output
         
-    - name: Extract and deploy
-      run: |
-        tar -xzf deploy.tar.gz
-        echo "Deployment completed for commit: ${{ github.sha }}"
+    - name: Deploy to Vercel
+      uses: amondnet/vercel-action@v25
+      with:
+        vercel-token: ${{ secrets.keAMKuG1RiuZuMccLk8PEJBf }}
+        vercel-args: '--prod'
